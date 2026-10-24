@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>E-Rechnung erstellen</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mut:#6b6b66;--bd:#dcdad2;--ac:#1f5f4a;--act:#fff;--err:#b3261e;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161715;--card:#202220;--tx:#ececE8;--mut:#9a9a94;--bd:#3a3c39;--ac:#6fcf9f;--act:#10281d;--err:#ff8a80}}
+:root[data-theme="dark"]{--bg:#161715;--card:#202220;--tx:#ececE8;--mut:#9a9a94;--bd:#3a3c39;--ac:#6fcf9f;--act:#10281d;--err:#ff8a80}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.5rem;margin:.2em 0}
+p.sub{color:var(--mut);margin:0 0 18px}
+fieldset{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px 16px;margin:0 0 16px}
+legend{font-weight:600;padding:0 6px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+label{display:block;font-size:.85rem;color:var(--mut)}
+input,select,textarea{width:100%;margin-top:3px;padding:9px 10px;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:8px}
+input.bad{border-color:var(--err)}
+.row{display:grid;grid-template-columns:3fr 1fr 1fr 1.2fr 1fr auto;gap:6px;margin-bottom:8px;align-items:end}
+.row label{font-size:.75rem}
+.scroll{overflow-x:auto}.scroll .rows{min-width:640px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:9px 14px}
+button.p{background:var(--ac);color:var(--act);border-color:var(--ac);font-weight:600}
+.tot{text-align:right;line-height:1.7}.tot b{font-size:1.15rem}
+#err{color:var(--err);margin:8px 0;white-space:pre-line}
+pre{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;overflow-x:auto;font-size:.78rem;max-height:340px}
+.note{font-size:.82rem;color:var(--mut)}
+</style>
+</head>
+<body>
+<main>
+<h1>E-Rechnung erstellen</h1>
+<p class="sub">Daten eingeben, XML-Datei (XRechnung 3.0, UBL) herunterladen. Alles läuft lokal in deinem Browser.</p>
+
+<fieldset><legend>Dein Unternehmen</legend>
+<div class="g">
+<label>Name / Firma*<input id="sName" autocomplete="organization"></label>
+<label>Straße + Nr.*<input id="sStr"></label>
+<label>PLZ*<input id="sPlz"></label>
+<label>Ort*<input id="sOrt"></label>
+<label>Steuernummer (oder USt-IdNr.)*<input id="sTax" placeholder="12/345/67890 oder DE123456789"></label>
+<label>Ansprechpartner*<input id="sKon"></label>
+<label>E-Mail*<input id="sMail" type="email"></label>
+<label>Telefon*<input id="sTel" type="tel"></label>
+<label>IBAN*<input id="sIban" placeholder="DE.."></label>
+<label>BIC (optional)<input id="sBic"></label>
+</div>
+<label style="margin-top:10px;color:var(--tx)"><input type="checkbox" id="klein" style="width:auto;margin-right:6px">Kleinunternehmer (§ 19 UStG, keine Umsatzsteuer)</label>
+<label class="note" style="margin-top:6px"><input type="checkbox" id="save" style="width:auto;margin-right:6px" checked>Meine Daten in diesem Browser merken</label>
+</fieldset>
+
+<fieldset><legend>Kunde</legend>
+<div class="g">
+<label>Name / Firma*<input id="bName"></label>
+<label>Straße + Nr.*<input id="bStr"></label>
+<label>PLZ*<input id="bPlz"></label>
+<label>Ort*<input id="bOrt"></label>
+<label>E-Mail des Kunden*<input id="bMail" type="email"></label>
+<label>Käufer-Referenz*<input id="bRef" placeholder="z. B. Kundennr. oder Bestellnr."></label>
+</div>
+</fieldset>
+
+<fieldset><legend>Rechnung</legend>
+<div class="g">
+<label>Rechnungsnummer*<input id="iNr" placeholder="2026-001"></label>
+<label>Rechnungsdatum*<input id="iDat" type="date"></label>
+<label>Leistungsdatum*<input id="iLeist" type="date"></label>
+<label>Zahlungsziel (Tage)<input id="iZiel" type="number" value="14" min="0"></label>
+</div>
+</fieldset>
+
+<fieldset><legend>PDF-Design</legend>
+<div class="g">
+<label>Logo (PNG, JPG, SVG)<input id="logo" type="file" accept="image/*"></label>
+<label>Logo-Position<select id="lpos"><option value="links">Oben links</option><option value="mitte">Oben Mitte</option><option value="rechts">Oben rechts</option></select></label>
+<label>Akzentfarbe<input id="lcol" type="color" value="#1f5f4a" style="height:40px;padding:3px"></label>
+</div>
+<div style="margin-top:8px;display:flex;gap:12px;align-items:center"><span id="lprev"></span><button type="button" id="lclear">Logo entfernen</button></div>
+<label style="margin-top:10px;color:var(--tx)"><input type="checkbox" id="pdfOn" style="width:auto;margin-right:6px" checked>Zusätzlich PDF-Rechnung erstellen</label>
+</fieldset>
+
+<fieldset><legend>Positionen</legend>
+<div class="scroll"><div class="rows" id="rows"></div></div>
+<button type="button" id="add">+ Position</button>
+<div class="tot" id="tot"></div>
+</fieldset>
+
+<div id="err"></div>
+<button class="p" type="button" id="go">E-Rechnung erzeugen &amp; herunterladen</button>
+<p class="note">Hinweis: Die Datei folgt dem XRechnung-3.0-Standard (EN 16931). Prüfe sie vor dem Versand z. B. mit dem kostenlosen KoSIT-Validator oder dem Prüftool deiner Buchhaltung und lass Sonderfälle (Ausland, Reverse Charge) von deinem Steuerberater klären. Keine Rechtsberatung.</p>
+<div id="out" hidden><h3>Vorschau XML</h3><pre id="xml"></pre></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const F=['sName','sStr','sPlz','sOrt','sTax','sKon','sMail','sTel','sIban','sBic'];
+const REQ=['sName','sStr','sPlz','sOrt','sTax','sKon','sMail','sTel','sIban','bName','bStr','bPlz','bOrt','bMail','bRef','iNr','iDat','iLeist'];
+const UNITS=[['C62','Stück'],['HUR','Std.'],['DAY','Tag'],['LS','pauschal'],['KGM','kg'],['MTR','m']];
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const eur=c=>(c/100).toFixed(2);
+const fmt=c=>(c/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
+
+function addRow(d){
+ const r=document.createElement('div');r.className='row';
+ r.innerHTML=`<label>Beschreibung<input class="d" value="${d?esc(d.d):''}"></label>
+ <label>Menge<input class="q" type="number" step="any" min="0" value="${d?d.q:1}"></label>
+ <label>Einheit<select class="u">${UNITS.map(u=>`<option value="${u[0]}">${u[1]}</option>`).join('')}</select></label>
+ <label>Einzelpreis netto €<input class="p" type="number" step="0.01" min="0" value="${d?d.p:''}"></label>
+ <label>USt %<select class="v"><option>19</option><option>7</option><option>0</option></select></label>
+ <button type="button" title="Entfernen">✕</button>`;
+ r.querySelector('button').onclick=()=>{if($('rows').children.length>1){r.remove();calc()}};
+ r.addEventListener('input',calc);$('rows').appendChild(r);calc();
+}
+function items(){
+ const k=$('klein').checked;
+ return [...$('rows').children].map(r=>{
+  const q=parseFloat(r.querySelector('.q').value)||0,p=parseFloat(r.querySelector('.p').value)||0;
+  return{d:r.querySelector('.d').value.trim(),q,u:r.querySelector('.u').value,p,
+   v:k?0:parseInt(r.querySelector('.v').value),net:Math.round(q*p*100)};
+ });
+}
+function totals(){
+ const it=items(),k=$('klein').checked,by={};
+ it.forEach(i=>{by[i.v]=(by[i.v]||0)+i.net});
+ let net=0,tax=0;const groups=Object.keys(by).map(v=>{const b=by[v],t=Math.round(b*v/100);net+=b;tax+=t;return{v:+v,b,t}});
+ return{it,groups,net,tax,gross:net+tax,k};
+}
+function calc(){
+ const t=totals();
+ $('tot').innerHTML=`Netto: ${fmt(t.net)}<br>${t.k?'Umsatzsteuer: entfällt (§ 19 UStG)':t.groups.map(g=>`USt ${g.v}%: ${fmt(g.t)}`).join('<br>')}<br><b>Gesamt: ${fmt(t.gross)}</b>`;
+ document.querySelectorAll('.v').forEach(s=>s.disabled=t.k);
+}
+function party(tag,o){
+ return `<cac:${tag}><cac:Party>
+ <cbc:EndpointID schemeID="EM">${esc(o.mail)}</cbc:EndpointID>
+ ${o.reg?`<cac:PartyName><cbc:Name>${esc(o.name)}</cbc:Name></cac:PartyName>`:`<cac:PartyName><cbc:Name>${esc(o.name)}</cbc:Name></cac:PartyName>`}
+ <cac:PostalAddress><cbc:StreetName>${esc(o.str)}</cbc:StreetName><cbc:CityName>${esc(o.ort)}</cbc:CityName><cbc:PostalZone>${esc(o.plz)}</cbc:PostalZone><cac:Country><cbc:IdentificationCode>DE</cbc:IdentificationCode></cac:Country></cac:PostalAddress>
+ ${o.tax?`<cac:PartyTaxScheme><cbc:CompanyID>${esc(o.tax)}</cbc:CompanyID><cac:TaxScheme><cbc:ID>${o.taxId}</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>`:''}
+ <cac:PartyLegalEntity><cbc:RegistrationName>${esc(o.name)}</cbc:RegistrationName></cac:PartyLegalEntity>
+ ${o.kon?`<cac:Contact><cbc:Name>${esc(o.kon)}</cbc:Name><cbc:Telephone>${esc(o.tel)}</cbc:Telephone><cbc:ElectronicMail>${esc(o.mail)}</cbc:ElectronicMail></cac:Contact>`:''}
+ </cac:Party></cac:${tag}>`;
+}
+function build(){
+ const t=totals(),v=id=>$(id).value.trim();
+ const tax=v('sTax').replace(/\s/g,''),isVat=/^DE\d{9}$/i.test(tax);
+ const cat=t.k?'E':'S';
+ const reason='Kein Ausweis von Umsatzsteuer gemäß § 19 UStG';
+ const catX=(v)=>`<cac:TaxCategory><cbc:ID>${cat}</cbc:ID><cbc:Percent>${v.toFixed(2)}</cbc:Percent>${t.k?`<cbc:TaxExemptionReason>${reason}</cbc:TaxExemptionReason>`:''}<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory>`;
+ const due=new Date(v('iDat'));due.setDate(due.getDate()+(parseInt(v('iZiel'))||0));
+ const dueS=due.toISOString().slice(0,10);
+ const iban=v('sIban').replace(/\s/g,'').toUpperCase();
+ const lines=t.it.map((i,n)=>`<cac:InvoiceLine><cbc:ID>${n+1}</cbc:ID><cbc:InvoicedQuantity unitCode="${i.u}">${i.q}</cbc:InvoicedQuantity><cbc:LineExtensionAmount currencyID="EUR">${eur(i.net)}</cbc:LineExtensionAmount>
+ <cac:Item><cbc:Name>${esc(i.d)}</cbc:Name><cac:ClassifiedTaxCategory><cbc:ID>${cat}</cbc:ID><cbc:Percent>${i.v.toFixed(2)}</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:ClassifiedTaxCategory></cac:Item>
+ <cac:Price><cbc:PriceAmount currencyID="EUR">${i.p.toFixed(2)}</cbc:PriceAmount></cac:Price></cac:InvoiceLine>`).join('\n');
+ const subs=t.groups.map(g=>`<cac:TaxSubtotal><cbc:TaxableAmount currencyID="EUR">${eur(g.b)}</cbc:TaxableAmount><cbc:TaxAmount currencyID="EUR">${eur(g.t)}</cbc:TaxAmount>${catX(g.v)}</cac:TaxSubtotal>`).join('');
+ return `<?xml version="1.0" encoding="UTF-8"?>
+<ubl:Invoice xmlns:ubl="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID>
+<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
+<cbc:ID>${esc(v('iNr'))}</cbc:ID>
+<cbc:IssueDate>${v('iDat')}</cbc:IssueDate>
+<cbc:DueDate>${dueS}</cbc:DueDate>
+<cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+<cbc:Note>Leistungsdatum: ${v('iLeist')}</cbc:Note>
+<cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+<cbc:BuyerReference>${esc(v('bRef'))}</cbc:BuyerReference>
+<cac:InvoicePeriod><cbc:StartDate>${v('iLeist')}</cbc:StartDate><cbc:EndDate>${v('iLeist')}</cbc:EndDate></cac:InvoicePeriod>
+${party('AccountingSupplierParty',{name:v('sName'),str:v('sStr'),plz:v('sPlz'),ort:v('sOrt'),mail:v('sMail'),tel:v('sTel'),kon:v('sKon'),tax,taxId:isVat?'VAT':'FC'})}
+${party('AccountingCustomerParty',{name:v('bName'),str:v('bStr'),plz:v('bPlz'),ort:v('bOrt'),mail:v('bMail')})}
+<cac:PaymentMeans><cbc:PaymentMeansCode>58</cbc:PaymentMeansCode><cac:PayeeFinancialAccount><cbc:ID>${esc(iban)}</cbc:ID>${v('sBic')?`<cac:FinancialInstitutionBranch><cbc:ID>${esc(v('sBic'))}</cbc:ID></cac:FinancialInstitutionBranch>`:''}</cac:PayeeFinancialAccount></cac:PaymentMeans>
+<cac:PaymentTerms><cbc:Note>Zahlbar bis ${dueS} ohne Abzug.</cbc:Note></cac:PaymentTerms>
+<cac:TaxTotal><cbc:TaxAmount currencyID="EUR">${eur(t.tax)}</cbc:TaxAmount>${subs}</cac:TaxTotal>
+<cac:LegalMonetaryTotal><cbc:LineExtensionAmount currencyID="EUR">${eur(t.net)}</cbc:LineExtensionAmount><cbc:TaxExclusiveAmount currencyID="EUR">${eur(t.net)}</cbc:TaxExclusiveAmount><cbc:TaxInclusiveAmount currencyID="EUR">${eur(t.gross)}</cbc:TaxInclusiveAmount><cbc:PayableAmount currencyID="EUR">${eur(t.gross)}</cbc:PayableAmount></cac:LegalMonetaryTotal>
+${lines}
+</ubl:Invoice>`;
+}
+function validate(){
+ const e=[];REQ.forEach(id=>{const el=$(id),bad=!el.value.trim();el.classList.toggle('bad',bad);if(bad)e.push(el.parentElement.firstChild.textContent.replace('*',''))});
+ const t=totals();
+ if(!t.it.every(i=>i.d&&i.q>0&&i.p>=0))e.push('Positionen: Beschreibung, Menge > 0 und Preis ausfüllen');
+ const ib=$('sIban').value.replace(/\s/g,'');if(ib&&!/^[A-Za-z]{2}\d{2}[A-Za-z0-9]{11,30}$/.test(ib))e.push('IBAN sieht ungültig aus');
+ return e;
+}
+$('go').onclick=()=>{
+ const e=validate();$('err').textContent=e.length?'Bitte prüfen:\n• '+e.join('\n• '):'';
+ if(e.length)return;
+ const x=build();$('xml').textContent=x;$('out').hidden=false;
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([x],{type:'application/xml'}));
+ a.download='xrechnung_'+$('iNr').value.trim().replace(/[^\w.-]+/g,'_')+'.xml';document.body.appendChild(a);a.click();a.remove();
+ if($('pdfOn').checked)setTimeout(()=>{try{makePdf()}catch(err){$('err').textContent='PDF-Fehler: '+err.message}},500);
+ try{if($('save').checked){const o={klein:$('klein').checked};F.forEach(i=>o[i]=$(i).value);localStorage.setItem('erech',JSON.stringify(o))}}catch(_){}
+};
+$('add').onclick=()=>addRow();
+$('klein').onchange=calc;
+let LOGO=null;
+function saveDesign(){try{localStorage.setItem('erdesign',JSON.stringify({logo:LOGO,pos:$('lpos').value,col:$('lcol').value}))}catch(_){}}
+function prev(){$('lprev').innerHTML=LOGO?`<img src="${LOGO.data}" alt="Logo" style="max-height:48px;max-width:160px">`:'<span class="note">Kein Logo gewählt</span>'}
+$('logo').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const s=Math.min(1,600/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);LOGO={data:c.toDataURL('image/png'),w:c.width,h:c.height};prev();saveDesign()};im.src=r.result};r.readAsDataURL(f)};
+$('lclear').onclick=()=>{LOGO=null;$('logo').value='';prev();saveDesign()};
+$('lpos').onchange=saveDesign;$('lcol').oninput=saveDesign;
+try{const d=JSON.parse(localStorage.getItem('erdesign')||'null');if(d){LOGO=d.logo;if(d.pos)$('lpos').value=d.pos;if(d.col)$('lcol').value=d.col}}catch(_){}
+prev();
+function makePdf(){
+ const t=totals(),v=id=>$(id).value.trim(),{jsPDF}=window.jspdf,d=new jsPDF({unit:'mm',format:'a4'});
+ const hex=$('lcol').value,rgb=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+ const de=s=>s.split('-').reverse().join('.'),m=c=>(c/100).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' EUR';
+ const L=20,R=190;let y=18;
+ if(LOGO){const h=Math.min(25,60*LOGO.h/LOGO.w),w=h*LOGO.w/LOGO.h,p=$('lpos').value,x=p==='links'?L:p==='mitte'?(210-w)/2:R-w;d.addImage(LOGO.data,'PNG',x,y,w,h)}
+ y=50;d.setFont('helvetica','normal');d.setFontSize(8);d.setTextColor(110);
+ d.text(`${v('sName')} · ${v('sStr')} · ${v('sPlz')} ${v('sOrt')}`,L,y);
+ d.setFontSize(11);d.setTextColor(0);
+ [v('bName'),v('bStr'),v('bPlz')+' '+v('bOrt')].forEach((s,i)=>d.text(s,L,y+7+i*5.5));
+ const due=new Date(v('iDat'));due.setDate(due.getDate()+(parseInt(v('iZiel'))||0));const dueS=de(due.toISOString().slice(0,10));
+ d.setFontSize(10);
+ [['Rechnungsnr.',v('iNr')],['Datum',de(v('iDat'))],['Leistungsdatum',de(v('iLeist'))],['Fällig am',dueS]].forEach((a,i)=>{d.setTextColor(110);d.text(a[0],125,y+7+i*5.5);d.setTextColor(0);d.text(a[1],R,y+7+i*5.5,{align:'right'})});
+ y=92;d.setFontSize(18);d.setTextColor(...rgb);d.setFont('helvetica','bold');d.text('Rechnung',L,y);y+=9;
+ const head=()=>{d.setFontSize(9);d.setFont('helvetica','bold');d.setTextColor(...rgb);d.text('Pos',L,y);d.text('Beschreibung',L+10,y);d.text('Menge',118,y,{align:'right'});d.text('Einzelpreis',144,y,{align:'right'});d.text('USt',158,y,{align:'right'});d.text('Gesamt',R,y,{align:'right'});d.setDrawColor(...rgb);d.line(L,y+2,R,y+2);y+=8;d.setFont('helvetica','normal');d.setTextColor(0)};
+ head();
+ t.it.forEach((i,n)=>{const ls=d.splitTextToSize(i.d,85);if(y+ls.length*4.5>265){d.addPage();y=20;head()}
+  d.text(String(n+1),L,y);d.text(ls,L+10,y);d.text(String(i.q).replace('.',','),118,y,{align:'right'});d.text(m(Math.round(i.p*100)),144,y,{align:'right'});d.text(t.k?'-':i.v+'%',158,y,{align:'right'});d.text(m(i.net),R,y,{align:'right'});y+=ls.length*4.5+2.5});
+ if(y>225){d.addPage();y=20}
+ d.setDrawColor(200);d.line(L,y,R,y);y+=7;
+ const tr=(a,b,bold)=>{d.setFont('helvetica',bold?'bold':'normal');d.setFontSize(bold?11:10);d.setTextColor(0);d.text(a,140,y,{align:'right'});d.text(b,R,y,{align:'right'});y+=6};
+ tr('Netto',m(t.net));if(!t.k)t.groups.forEach(g=>tr('USt '+g.v+'%',m(g.t)));tr('Gesamtbetrag',m(t.gross),true);
+ y+=4;d.setFont('helvetica','normal');d.setFontSize(9);d.setTextColor(60);
+ const notes=[];if(t.k)notes.push('Kein Ausweis von Umsatzsteuer gemäß § 19 UStG.');
+ notes.push(`Bitte überweisen Sie bis ${dueS} auf: IBAN ${v('sIban')}${v('sBic')?' · BIC '+v('sBic'):''}`);
+ notes.forEach(s=>{const ls=d.splitTextToSize(s,R-L);d.text(ls,L,y);y+=ls.length*5});
+ d.setFontSize(8);d.setTextColor(110);d.setDrawColor(200);d.line(L,278,R,278);
+ d.text(d.splitTextToSize(`${v('sName')} · ${v('sKon')} · ${v('sMail')} · ${v('sTel')} · Steuernr./USt-IdNr.: ${v('sTax')}`,R-L),L,283);
+ d.save('rechnung_'+v('iNr').replace(/[^\w.-]+/g,'_')+'.pdf');
+}
+(function init(){
+ const d=new Date().toISOString().slice(0,10);$('iDat').value=d;$('iLeist').value=d;
+ try{const o=JSON.parse(localStorage.getItem('erech')||'null');if(o){F.forEach(i=>{if(o[i])$(i).value=o[i]});$('klein').checked=!!o.klein}}catch(_){}
+ addRow();
+})();
+</script>
+</body>
+</html>
