@@ -1,3 +1,6 @@
+Dieses Tool ist ein privates Open-Source-Projekt, das als reines Hilfsprogramm gedacht ist. 
+Es ersetzt keine professionelle Steuer- oder Rechtsberatung. Für die Richtigkeit, Vollständigkeit und steuerliche Korrektheit der generierten XML- und PDF-Dateien wird keinerlei Haftung übernommen. Die Nutzung erfolgt auf eigene Verantwortung. Bitte prüfen Sie Rechnungen vor dem Versand mit offiziellen Prüftools (z. B. KoSIT Validator).
+
 # e-rechnung-generator 
 Ein minimalistisches, clientseitiges XRechnung 3.0 Tool für Kleinunternehmer
 # Minimalistisches E-Rechnungs-Tool (XRechnung 3.0 / UBL)
